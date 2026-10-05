@@ -1,0 +1,19 @@
+# Contoh konfigurasi SSH aman
+
+```text
+# /etc/ssh/sshd_config
+Port 22
+Protocol 2
+PasswordAuthentication no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+ChallengeResponseAuthentication no
+UsePAM yes
+X11Forwarding no
+PrintMotd no
+PermitRootLogin no
+AllowUsers admin
+Subsystem sftp internal-sftp
+ClientAliveInterval 300
+ClientAliveCountMax 2
+```
