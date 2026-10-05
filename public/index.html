@@ -1,0 +1,41 @@
+[
+  {
+    "id": "bastion",
+    "name": "Bastion Host",
+    "host": "10.10.10.10",
+    "port": 22,
+    "username": "admin",
+    "password": "",
+    "privateKeyPath": "",
+    "description": "Jump host yang menjadi pintu masuk ke jaringan internal.",
+    "type": "linux",
+    "access": "VPN only",
+    "status": "ready"
+  },
+  {
+    "id": "linux-target",
+    "name": "Linux Target",
+    "host": "10.10.20.10",
+    "port": 22,
+    "username": "admin",
+    "password": "",
+    "privateKeyPath": "",
+    "description": "Target Linux yang dikelola dari bastion.",
+    "type": "linux",
+    "access": "Bastion only",
+    "status": "ready"
+  },
+  {
+    "id": "windows-target",
+    "name": "Windows Target",
+    "host": "10.10.30.10",
+    "port": 3389,
+    "username": "administrator",
+    "password": "",
+    "privateKeyPath": "",
+    "description": "Target Windows untuk pengujian RDP dengan NLA aktif.",
+    "type": "windows",
+    "access": "Bastion only",
+    "status": "ready"
+  }
+]

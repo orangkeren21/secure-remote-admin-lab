@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Secure Remote Administration Lab</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">SR</div>
+          <div>
+            <h1>Secure Lab</h1>
+            <small>Remote Administration</small>
+          </div>
+        </div>
+
+        <nav class="nav-links">
+          <button class="nav-button active" data-section="dashboard">Dashboard</button>
+          <button class="nav-button" data-section="terminal">Terminal</button>
+          <button class="nav-button" data-section="hosts">Hosts</button>
+        </nav>
+
+        <div class="sidebar-card">
+          <p class="label">Status</p>
+          <div id="health-status" class="status-box ok">Checking server...</div>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <section id="dashboard" class="section active">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Overview</p>
+              <h2>Lab Dashboard</h2>
+            </div>
+          </div>
+
+          <div class="metric-grid" id="metric-grid"></div>
+
+          <div class="info-grid">
+            <div class="panel-card">
+              <h3>Arsitektur aman</h3>
+              <ul>
+                <li>Admin workstation terisolasi</li>
+                <li>VPN ke bastion host</li>
+                <li>SSH key-based authentication</li>
+                <li>Firewall default deny</li>
+                <li>Monitoring dan kolam log</li>
+              </ul>
+            </div>
+
+            <div class="panel-card">
+              <h3>Hukum dan etik</h3>
+              <p>
+                Gunakan hanya pada lingkungan yang Anda miliki wewenang untuk mengelola.
+                Lab ini memperlihatkan model akses aman, bukan eksploitasi atau akses ilegal.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section id="terminal" class="section">
+          <div class="panel-header terminal-header">
+            <div>
+              <p class="eyebrow">Connection</p>
+              <h2>Browser Terminal</h2>
+            </div>
+          </div>
+
+          <div class="connect-toolbar">
+            <label>
+              Host
+              <select id="host-select"></select>
+            </label>
+            <button id="connect-button" class="primary-button">Connect</button>
+            <button id="disconnect-button" class="secondary-button">Disconnect</button>
+          </div>
+
+          <div id="connection-status" class="status-box idle">Tidak terhubung</div>
+          <div id="terminal" class="terminal"></div>
+        </section>
+
+        <section id="hosts" class="section">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Inventory</p>
+              <h2>Host List</h2>
+            </div>
+          </div>
+          <div id="host-list" class="host-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

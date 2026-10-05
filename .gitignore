@@ -1,4 +1,177 @@
-*.log
-*.tmp
-.DS_Store
-.vscode/
+const socket = io();
+const metricGrid = document.getElementById('metric-grid');
+const hostSelect = document.getElementById('host-select');
+const hostList = document.getElementById('host-list');
+const healthStatus = document.getElementById('health-status');
+const connectionStatus = document.getElementById('connection-status');
+const connectButton = document.getElementById('connect-button');
+const disconnectButton = document.getElementById('disconnect-button');
+
+const navButtons = document.querySelectorAll('.nav-button');
+const sections = document.querySelectorAll('.section');
+
+let terminalInstance = null;
+let activeSocketSession = null;
+
+navButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    navButtons.forEach((btn) => btn.classList.remove('active'));
+    sections.forEach((section) => section.classList.remove('active'));
+    button.classList.add('active');
+    const target = button.dataset.section;
+    document.getElementById(target).classList.add('active');
+  });
+});
+
+function renderMetrics(hosts) {
+  const metrics = [
+    { label: 'Host aktif', value: hosts.length },
+    { label: 'SSH access', value: 'Key-based' },
+    { label: 'Firewall', value: 'Default deny' },
+    { label: 'VPN', value: 'Required' }
+  ];
+
+  metricGrid.innerHTML = metrics
+    .map(
+      (metric) => `
+        <div class="metric-box">
+          <h3>${metric.label}</h3>
+          <strong>${metric.value}</strong>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function renderHostList(hosts) {
+  hostList.innerHTML = hosts
+    .map(
+      (host) => `
+        <div class="host-item">
+          <div>
+            <h4>${host.name}</h4>
+            <p>${host.host}:${host.port} · ${host.description}</p>
+          </div>
+          <div>
+            <p>${host.type.toUpperCase()} · ${host.access}</p>
+          </div>
+          <span class="host-status">${host.status}</span>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function populateHostSelect(hosts) {
+  hostSelect.innerHTML = hosts
+    .map((host) => `<option value="${host.id}">${host.name}</option>`)
+    .join('');
+}
+
+async function loadHosts() {
+  try {
+    const response = await fetch('/api/hosts');
+    const hosts = await response.json();
+    renderMetrics(hosts);
+    renderHostList(hosts);
+    populateHostSelect(hosts);
+    healthStatus.textContent = 'Server online';
+    healthStatus.className = 'status-box ok';
+  } catch (error) {
+    healthStatus.textContent = 'Server unavailable';
+    healthStatus.className = 'status-box err';
+    console.error(error);
+  }
+}
+
+function initTerminal() {
+  const terminalElement = document.getElementById('terminal');
+
+  const term = new Terminal({
+    cursorBlink: true,
+    theme: {
+      background: '#020817',
+      foreground: '#e2e8f0'
+    },
+    fontSize: 14,
+    scrollback: 10000
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(terminalElement);
+  fitAddon.fit();
+
+  term.onData((data) => {
+    if (activeSocketSession) {
+      socket.emit('terminal-input', data);
+    }
+  });
+
+  terminalInstance = term;
+}
+
+async function connectToHost() {
+  const hostId = hostSelect.value;
+  if (!hostId) {
+    connectionStatus.textContent = 'Pilih host terlebih dahulu';
+    connectionStatus.className = 'status-box err';
+    return;
+  }
+
+  connectionStatus.textContent = 'Menghubungkan...';
+  connectionStatus.className = 'status-box idle';
+  activeSocketSession = hostId;
+
+  socket.emit('connect-host', { hostId });
+}
+
+function disconnectHost() {
+  if (terminalInstance) {
+    terminalInstance.reset();
+    terminalInstance.write('\r\n[Disconnected]\r\n');
+  }
+
+  connectionStatus.textContent = 'Tidak terhubung';
+  connectionStatus.className = 'status-box idle';
+  activeSocketSession = null;
+}
+
+connectButton.addEventListener('click', connectToHost);
+disconnectButton.addEventListener('click', disconnectHost);
+
+socket.on('connect-status', (message) => {
+  connectionStatus.textContent = message;
+  connectionStatus.className = 'status-box ok';
+  if (terminalInstance) {
+    terminalInstance.write('\r\n');
+  }
+});
+
+socket.on('connect-error', (message) => {
+  connectionStatus.textContent = message;
+  connectionStatus.className = 'status-box err';
+  if (terminalInstance) {
+    terminalInstance.write(`\r\n${message}\r\n`);
+  }
+});
+
+socket.on('terminal-output', (data) => {
+  if (terminalInstance) {
+    terminalInstance.write(data);
+  }
+});
+
+fetch('/api/health')
+  .then((response) => response.json())
+  .then((data) => {
+    healthStatus.textContent = data.status === 'ok' ? 'Server online' : 'Server unavailable';
+    healthStatus.className = data.status === 'ok' ? 'status-box ok' : 'status-box err';
+  })
+  .catch(() => {
+    healthStatus.textContent = 'Server unavailable';
+    healthStatus.className = 'status-box err';
+  });
+
+loadHosts();
+initTerminal();

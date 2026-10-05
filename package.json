@@ -1,0 +1,25 @@
+{
+  "name": "secure-remote-admin-lab-ui",
+  "version": "1.0.0",
+  "description": "Local browser dashboard for a secure remote administration lab",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "security",
+    "remote-administration",
+    "lab",
+    "ssh",
+    "dashboard"
+  ],
+  "author": "orangkeren21",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "ssh2": "^1.15.0"
+  }
+}
