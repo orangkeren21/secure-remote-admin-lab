@@ -1,0 +1,145 @@
+const express = require('express');
+const http = require('http');
+const path = require('path');
+const fs = require('fs');
+const { Server } = require('socket.io');
+const ssh2 = require('ssh2');
+const dotenv = require('dotenv');
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+const HOSTS_FILE = path.join(__dirname, 'hosts.json');
+const PORT = process.env.PORT || 3000;
+
+const readHosts = () => {
+  const raw = fs.readFileSync(HOSTS_FILE, 'utf8');
+  return JSON.parse(raw);
+};
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Remote admin lab dashboard is running.' });
+});
+
+app.get('/api/hosts', (req, res) => {
+  try {
+    const hosts = readHosts();
+    res.json(hosts.map((host) => ({
+      id: host.id,
+      name: host.name,
+      host: host.host,
+      port: host.port || 22,
+      username: host.username,
+      description: host.description,
+      type: host.type,
+      access: host.access,
+      status: host.status || 'ready'
+    })));
+  } catch (error) {
+    res.status(500).json({ error: 'Could not read hosts.json', detail: error.message });
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log('Client connected:', socket.id);
+
+  socket.on('connect-host', ({ hostId }) => {
+    let host = null;
+    try {
+      host = readHosts().find((item) => item.id === hostId);
+    } catch (error) {
+      socket.emit('connect-error', `Failed to load hosts: ${error.message}`);
+      return;
+    }
+
+    if (!host) {
+      socket.emit('connect-error', 'Host not found.');
+      return;
+    }
+
+    const conn = new ssh2.Client();
+    let shellStream = null;
+
+    const connectOptions = {
+      host: host.host,
+      port: host.port || 22,
+      username: host.username,
+      readyTimeout: 15000,
+      keepaliveInterval: 30000,
+      keepaliveCountMax: 3
+    };
+
+    if (host.privateKeyPath && host.privateKeyPath.trim()) {
+      try {
+        connectOptions.privateKey = fs.readFileSync(host.privateKeyPath, 'utf8');
+      } catch (error) {
+        socket.emit('connect-error', `Private key not found at ${host.privateKeyPath}. ${error.message}`);
+        return;
+      }
+    } else if (host.password && host.password.trim()) {
+      connectOptions.password = host.password;
+    } else {
+      socket.emit('connect-error', 'No password or private key provided.');
+      return;
+    }
+
+    conn.on('ready', () => {
+      socket.emit('connect-status', `Connected to ${host.name} (${host.host})`);
+
+      conn.shell((shellError, stream) => {
+        if (shellError) {
+          socket.emit('connect-error', shellError.message);
+          return;
+        }
+
+        shellStream = stream;
+
+        stream.on('close', () => {
+          socket.emit('terminal-output', '\r\n[Session closed]\r\n');
+          conn.end();
+        });
+
+        stream.on('data', (data) => {
+          socket.emit('terminal-output', data.toString());
+        });
+
+        stream.on('error', (data) => {
+          socket.emit('connect-error', data.message || 'Shell stream error.');
+        });
+
+        socket.on('terminal-input', (data) => {
+          if (stream && !stream.destroyed) {
+            stream.write(data);
+          }
+        });
+
+        socket.on('disconnect', () => {
+          if (stream && !stream.destroyed) {
+            stream.end();
+          }
+          conn.end();
+        });
+      });
+    });
+
+    conn.on('error', (err) => {
+      socket.emit('connect-error', `SSH error: ${err.message}`);
+    });
+
+    conn.connect(connectOptions);
+  });
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+server.listen(PORT, () => {
+  console.log(`Remote admin lab dashboard running at http://localhost:${PORT}`);
+});
