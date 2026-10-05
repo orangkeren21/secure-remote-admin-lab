@@ -1,303 +1,217 @@
-* {
-  box-sizing: border-box;
+const socket = io();
+
+const metricGrid = document.getElementById('metric-grid');
+const hostSelect = document.getElementById('host-select');
+const hostList = document.getElementById('host-list');
+const healthStatus = document.getElementById('health-status');
+const connectionStatus = document.getElementById('connection-status');
+const connectButton = document.getElementById('connect-button');
+const disconnectButton = document.getElementById('disconnect-button');
+
+const navButtons = document.querySelectorAll('.nav-button');
+const sections = document.querySelectorAll('.section');
+
+let terminalInstance = null;
+let activeSocketSession = null;
+
+navButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    navButtons.forEach((btn) => btn.classList.remove('active'));
+    sections.forEach((section) => section.classList.remove('active'));
+    button.classList.add('active');
+    const target = button.dataset.section;
+    document.getElementById(target).classList.add('active');
+  });
+});
+
+function renderMetrics(hosts) {
+  const metrics = [
+    { label: 'Host Aktif', value: hosts.length },
+    { label: 'SSH Access', value: 'Key-Based' },
+    { label: 'Firewall', value: 'Default Deny' },
+    { label: 'Status', value: 'Running' }
+  ];
+
+  metricGrid.innerHTML = metrics
+    .map(
+      (metric) => `
+        <div class="metric-box">
+          <h3>${metric.label}</h3>
+          <strong>${metric.value}</strong>
+        </div>
+      `
+    )
+    .join('');
 }
 
-:root {
-  --bg: #0f172a;
-  --panel: #111827;
-  --panel-alt: #1f2937;
-  --card: #0b1220;
-  --muted: #94a3b8;
-  --text: #e2e8f0;
-  --accent: #38bdf8;
-  --accent-strong: #0ea5e9;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --border: rgba(148, 163, 184, 0.2);
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #020817, #111827 40%, #0f172a);
-  color: var(--text);
-}
-
-body {
-  min-height: 100vh;
-}
-
-button,
-select {
-  font: inherit;
-}
-
-.app-shell {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  min-height: 100vh;
-}
-
-.sidebar {
-  background: rgba(15, 23, 42, 0.92);
-  border-right: 1px solid var(--border);
-  padding: 24px 18px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 32px;
-}
-
-.brand-mark {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  font-weight: 700;
-  color: #03131d;
-  background: linear-gradient(135deg, var(--accent), #67e8f9);
-  border-radius: 12px;
-}
-
-.brand h1 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.brand small {
-  color: var(--muted);
-}
-
-.nav-links {
-  display: grid;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-
-.nav-button {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  padding: 12px 14px;
-  border-radius: 10px;
-  text-align: left;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.nav-button.active,
-.nav-button:hover {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.5);
-}
-
-.sidebar-card,
-.panel-card {
-  border: 1px solid var(--border);
-  background: rgba(17, 24, 39, 0.85);
-  border-radius: 14px;
-  padding: 16px;
-}
-
-.label,
-.eyebrow {
-  margin: 0 0 8px;
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-}
-
-.main-panel {
-  padding: 28px;
-}
-
-.section {
-  display: none;
-}
-
-.section.active {
-  display: block;
-}
-
-.panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
-
-.panel-header h2 {
-  margin: 0;
-  font-size: clamp(1.7rem, 3vw, 2.4rem);
-}
-
-.metric-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 18px;
-  margin-bottom: 26px;
-}
-
-.metric-box {
-  border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.9);
-  border-radius: 14px;
-  padding: 20px;
-}
-
-.metric-box h3 {
-  margin: 0 0 8px;
-  font-size: 0.86rem;
-  color: var(--muted);
-}
-
-.metric-box strong {
-  font-size: 1.8rem;
-}
-
-.info-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
-}
-
-.panel-card h3 {
-  margin-top: 0;
-}
-
-.panel-card ul {
-  margin: 0;
-  padding-left: 18px;
-  color: var(--text);
-}
-
-.panel-card p {
-  margin: 0;
-  color: var(--text);
-  line-height: 1.6;
-}
-
-.connect-toolbar {
-  display: flex;
-  align-items: end;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.connect-toolbar label {
-  display: grid;
-  gap: 8px;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
-select,
-.primary-button,
-.secondary-button {
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #0b1220;
-  color: var(--text);
-  padding: 10px 14px;
-}
-
-.primary-button {
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  color: #04131c;
-  border: none;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.secondary-button {
-  cursor: pointer;
-}
-
-.status-box {
-  display: inline-flex;
-  align-items: center;
-  min-height: 42px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  margin-bottom: 16px;
-}
-
-.status-box.ok {
-  background: rgba(34, 197, 94, 0.12);
-  border-color: rgba(34, 197, 94, 0.4);
-  color: #bbf7d0;
-}
-
-.status-box.err {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #fecaca;
-}
-
-.status-box.idle {
-  background: rgba(148, 163, 184, 0.08);
-  color: var(--muted);
-}
-
-.terminal {
-  height: 480px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(2, 6, 23, 0.92);
-  overflow: hidden;
-}
-
-.host-list {
-  display: grid;
-  gap: 14px;
-}
-
-.host-item {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr auto;
-  align-items: center;
-  gap: 12px;
-  border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.8);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.host-item h4 {
-  margin: 0 0 6px;
-}
-
-.host-item p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.host-status {
-  display: inline-flex;
-  justify-content: center;
-  padding: 8px 10px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: rgba(56, 189, 248, 0.08);
-  color: #bae6fd;
-}
-
-@media (max-width: 900px) {
-  .app-shell {
-    grid-template-columns: 1fr;
+function renderHostList(hosts) {
+  if (hosts.length === 0) {
+    hostList.innerHTML = '<p style="color: var(--muted); padding: 20px;">Belum ada host yang dikonfigurasi.</p>';
+    return;
   }
 
-  .sidebar {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+  hostList.innerHTML = hosts
+    .map(
+      (host) => `
+        <div class="host-item">
+          <div>
+            <h4>${host.name}</h4>
+            <p>${host.host}:${host.port} · ${host.description}</p>
+          </div>
+          <div>
+            <p>${host.type.toUpperCase()} · ${host.access}</p>
+          </div>
+          <span class="host-status">${host.status}</span>
+        </div>
+      `
+    )
+    .join('');
+}
+
+function populateHostSelect(hosts) {
+  if (hosts.length === 0) {
+    hostSelect.innerHTML = '<option>Tidak ada host</option>';
+    return;
+  }
+
+  hostSelect.innerHTML = hosts
+    .map((host) => `<option value="${host.id}">${host.name}</option>`)
+    .join('');
+}
+
+async function loadHosts() {
+  try {
+    const response = await fetch('/api/hosts');
+    if (!response.ok) throw new Error('Failed to load hosts');
+
+    const hosts = await response.json();
+    renderMetrics(hosts);
+    renderHostList(hosts);
+    populateHostSelect(hosts);
+    healthStatus.textContent = 'Server online';
+    healthStatus.className = 'status-box ok';
+  } catch (error) {
+    healthStatus.textContent = 'Server unavailable';
+    healthStatus.className = 'status-box err';
+    console.error('Error loading hosts:', error);
   }
 }
+
+function initTerminal() {
+  const terminalElement = document.getElementById('terminal');
+
+  if (!terminalElement) {
+    console.error('Terminal element not found');
+    return;
+  }
+
+  const term = new Terminal({
+    cursorBlink: true,
+    theme: {
+      background: '#020817',
+      foreground: '#e2e8f0'
+    },
+    fontSize: 13,
+    scrollback: 10000,
+    rows: 25,
+    cols: 80
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open(terminalElement);
+
+  try {
+    fitAddon.fit();
+  } catch (e) {
+    console.error('Error fitting terminal:', e);
+  }
+
+  term.onData((data) => {
+    if (activeSocketSession) {
+      socket.emit('terminal-input', data);
+    }
+  });
+
+  terminalInstance = term;
+  term.write('Ready to connect to a host. Select a host above and click Connect.\r\n');
+}
+
+async function connectToHost() {
+  const hostId = hostSelect.value;
+  if (!hostId) {
+    connectionStatus.textContent = 'Pilih host terlebih dahulu';
+    connectionStatus.className = 'status-box err';
+    return;
+  }
+
+  connectionStatus.textContent = 'Menghubungkan...';
+  connectionStatus.className = 'status-box idle';
+  activeSocketSession = hostId;
+
+  if (terminalInstance) {
+    terminalInstance.reset();
+    terminalInstance.write('Connecting...\r\n');
+  }
+
+  socket.emit('connect-host', { hostId });
+}
+
+function disconnectHost() {
+  if (terminalInstance) {
+    terminalInstance.reset();
+    terminalInstance.write('\r\n[Session Disconnected]\r\n');
+  }
+
+  connectionStatus.textContent = 'Tidak terhubung';
+  connectionStatus.className = 'status-box idle';
+  activeSocketSession = null;
+}
+
+connectButton.addEventListener('click', connectToHost);
+disconnectButton.addEventListener('click', disconnectHost);
+
+socket.on('connect-status', (message) => {
+  connectionStatus.textContent = message;
+  connectionStatus.className = 'status-box ok';
+  if (terminalInstance) {
+    terminalInstance.write('\r\n');
+  }
+});
+
+socket.on('connect-error', (message) => {
+  connectionStatus.textContent = `Error: ${message}`;
+  connectionStatus.className = 'status-box err';
+  if (terminalInstance) {
+    terminalInstance.write(`\r\n[ERROR] ${message}\r\n`);
+  }
+  activeSocketSession = null;
+});
+
+socket.on('terminal-output', (data) => {
+  if (terminalInstance) {
+    terminalInstance.write(data);
+  }
+});
+
+fetch('/api/health')
+  .then((response) => response.json())
+  .then((data) => {
+    if (data.status === 'ok') {
+      healthStatus.textContent = 'Server online';
+      healthStatus.className = 'status-box ok';
+    } else {
+      healthStatus.textContent = 'Server error';
+      healthStatus.className = 'status-box err';
+    }
+  })
+  .catch((error) => {
+    console.error('Health check failed:', error);
+    healthStatus.textContent = 'Server unavailable';
+    healthStatus.className = 'status-box err';
+  });
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadHosts();
+  initTerminal();
+});
